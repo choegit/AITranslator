@@ -105,3 +105,7 @@ app/src/main/java/com/example/aitranslator/
 
 - [`DESIGN.md`](DESIGN.md) — architecture, design decisions and rationale, tradeoffs
 - [`CLAUDE.md`](CLAUDE.md) — concise guidance for working in the codebase
+
+---
+
+_Status: prototype — the full on-device ASR → translation → TTS pipeline works end to end._
