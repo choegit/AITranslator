@@ -146,6 +146,58 @@ If the target model isn't ready, the pipeline emits `Error` up front and stops.
 If playback fails, it emits `SpeechFailed` (translation already shown) and
 continues.
 
+### Sequence diagram
+
+```mermaid
+sequenceDiagram
+    actor User
+    participant UI as ConversationScreen
+    participant VM as ConversationViewModel
+    participant P as TranslationPipeline
+    participant ASR as SpeechRecognizer
+    participant MT as Translator
+    participant TTS as SpeechSynthesizer
+    participant MM as ModelManager
+
+    User->>UI: tap "Start listening"
+    UI->>VM: toggleListening()
+    VM->>P: run(source, target)
+    P->>MM: isReady(target)?
+
+    alt target model not ready
+        P-->>VM: Error("Download the … model first")
+        VM-->>UI: show error
+    else ready
+        loop each turn (until Stop)
+            P->>ASR: recognize(source)
+            ASR-->>P: Rms(amplitude)
+            P-->>VM: Listening(amplitude)
+            VM-->>UI: VU meter
+            ASR-->>P: Partial(text)
+            P-->>VM: Transcribing(text)
+            VM-->>UI: live transcript
+            ASR-->>P: Final(text)
+            Note over P,ASR: flow cancelled → mic released (half-duplex)
+
+            P-->>VM: Translating(text)
+            P->>MT: translate(text, source, target)
+            MT-->>P: translatedText
+            P-->>VM: Turn(source, translated)
+            VM-->>UI: append to history
+
+            P-->>VM: Speaking(translated)
+            P->>TTS: speak(translated, target)
+            alt playback ok
+                TTS-->>P: done
+            else no voice / failure
+                TTS-->>P: throws
+                P-->>VM: SpeechFailed(target)
+                VM-->>UI: error + "Install voice"
+            end
+        end
+    end
+```
+
 ## 6. Key design decisions
 
 ### D1. Stages behind interfaces; assembled only in DI
