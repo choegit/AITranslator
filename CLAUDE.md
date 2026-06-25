@@ -47,10 +47,13 @@ to speak it — the UI offers an "Install voice" button).
   and **releases the mic**, then translates and speaks, then loops. Recording and
   speaking at the same time stalls audio on most devices — keep them mutually
   exclusive.
-- **Swapping mock ↔ real is one line.** Each stage is bound in `di/AppModule`
-  (`provideSpeechRecognizer`, `provideTranslator`, `provideSpeechSynthesizer`).
-  Changing an implementation there must require no changes in the pipeline,
-  viewmodels, or UI.
+- **Mock ↔ real is a single switch.** `di/AppModule` selects implementations by
+  the `BuildConfig.OFFLINE_DEMO` flag (`buildConfigField` in `app/build.gradle.kts`,
+  default `false`). `true` = offline demo mode: `MockSpeechRecognizer` +
+  `MockTranslator` (no speech models, no ML Kit downloads, deterministic — good for
+  emulators/demos). `false` = real on-device engines. Either way the pipeline,
+  viewmodels, and UI are unchanged. The mock recognizer still reads the real
+  `AudioCapture` (mic), so the offline path exercises real audio capture.
 
 ## Device requirements (for real audio output)
 

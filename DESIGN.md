@@ -149,11 +149,15 @@ continues.
 ## 6. Key design decisions
 
 ### D1. Stages behind interfaces; assembled only in DI
-Each stage is an interface; concrete impls are bound in `di/AppModule`
-(`provideSpeechRecognizer`, `provideTranslator`, `provideSpeechSynthesizer`).
-Moving mock → real (or swapping ML engines later) is a one-line change there,
-with no impact on the pipeline, viewmodels, or UI. **Rationale:** the primary
-architectural goal; also enables fast JVM tests with fakes.
+Each stage is an interface; concrete impls are bound in `di/AppModule`, selected
+by the `BuildConfig.OFFLINE_DEMO` flag. `false` (default) wires the real
+on-device engines; `true` wires the scripted `MockSpeechRecognizer` +
+`MockTranslator` for a fully offline, deterministic demo (no speech models, no ML
+Kit downloads) — useful on emulators or for reproducible demos. Switching modes,
+or swapping in a different engine later, requires no change to the pipeline,
+viewmodels, or UI. **Rationale:** the primary architectural goal; also enables
+fast JVM tests with fakes. Note the mock recognizer still reads the real
+`AudioCapture`, so the offline path exercises genuine mic capture/VAD.
 
 ### D2. The recognizer owns audio
 Android's `SpeechRecognizer` captures the mic itself and won't accept external
@@ -253,7 +257,8 @@ validated manually.
   currently illustrative. Unify them and show progress/gate on translation models
   too.
 - **Turn-based only.** No barge-in or streaming translation of partials.
-- **Mock translator** fallback is a tagged passthrough; only relevant when wired
-  in instead of ML Kit.
+- **Offline demo mode** (`OFFLINE_DEMO = true`) uses the mock translator's small
+  canned phrasebook (co-designed with the mock recognizer's scripted phrases);
+  arbitrary input falls back to a tagged `[xx] …` passthrough.
 - Languages are a small fixed set (`Language.ALL`); extend as needed (codes must
   be supported by ASR, ML Kit, and TTS).

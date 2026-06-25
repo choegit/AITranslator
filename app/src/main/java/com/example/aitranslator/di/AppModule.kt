@@ -1,6 +1,7 @@
 package com.example.aitranslator.di
 
 import android.content.Context
+import com.example.aitranslator.BuildConfig
 import com.example.aitranslator.asr.AndroidSpeechRecognizer
 import com.example.aitranslator.asr.MockSpeechRecognizer
 import com.example.aitranslator.asr.SpeechRecognizer
@@ -23,9 +24,10 @@ import javax.inject.Singleton
 /**
  * Single source of truth for how the pipeline is assembled.
  *
- * Each ML stage is provided behind its interface, so moving from mock to a real
- * on-device model is a one-line change here (swap the returned implementation)
- * with no impact on the pipeline, viewmodels, or UI.
+ * Each ML stage is provided behind its interface. The `OFFLINE_DEMO` build flag
+ * selects the scripted mock stages (no speech models / no ML Kit downloads —
+ * fully offline and deterministic) vs. the real on-device engines, with no
+ * impact on the pipeline, viewmodels, or UI.
  */
 @Module
 @InstallIn(SingletonComponent::class)
@@ -37,26 +39,24 @@ object AppModule {
 
     @Provides
     @Singleton
-    fun provideSpeechRecognizer(@ApplicationContext context: Context): SpeechRecognizer =
-        // Real on-device recognizer. Swap to MockSpeechRecognizer(audioCapture) to
-        // use the scripted mock that runs entirely offline without speech models.
-        AndroidSpeechRecognizer(context)
-
-    /** Retained so the mock recognizer (or a future real ASR fed PCM) can be wired in. */
-    @Suppress("unused")
-    fun provideMockSpeechRecognizer(audioCapture: AudioCapture): SpeechRecognizer =
-        MockSpeechRecognizer(audioCapture)
+    fun provideSpeechRecognizer(
+        @ApplicationContext context: Context,
+        audioCapture: AudioCapture,
+    ): SpeechRecognizer =
+        if (BuildConfig.OFFLINE_DEMO) {
+            MockSpeechRecognizer(audioCapture) // scripted phrases over the real mic
+        } else {
+            AndroidSpeechRecognizer(context) // real on-device recognition (SODA)
+        }
 
     @Provides
     @Singleton
     fun provideTranslator(): Translator =
-        // Real on-device translation. Swap to MockTranslator() for the offline
-        // canned phrasebook that needs no model downloads.
-        MLKitTranslator()
-
-    /** Retained as the offline, no-download fallback translator. */
-    @Suppress("unused")
-    fun provideMockTranslator(): Translator = MockTranslator()
+        if (BuildConfig.OFFLINE_DEMO) {
+            MockTranslator() // canned phrasebook, no model downloads
+        } else {
+            MLKitTranslator() // real on-device translation
+        }
 
     @Provides
     @Singleton

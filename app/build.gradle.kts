@@ -20,6 +20,11 @@ android {
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+
+        // Offline demo mode: when true, the app uses the scripted mock recognizer +
+        // canned mock translator (no speech models, no ML Kit downloads, fully
+        // offline/deterministic). Flip to "true" to demo without on-device models.
+        buildConfigField("boolean", "OFFLINE_DEMO", "false")
     }
 
     buildTypes {
@@ -40,6 +45,7 @@ android {
     }
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 }
 

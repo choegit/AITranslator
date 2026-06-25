@@ -19,7 +19,7 @@ or fully offline demos.
 - 🔊 **Spoken output** — platform TTS with automatic local-voice selection
 - 🔁 **Turn-based conversation** — half-duplex so the mic and speaker don't fight
 - 📦 **Offline model management** — download/delete language models in-app
-- 🧩 **Swappable stages** — real ↔ mock implementations via a one-line DI change
+- 🧩 **Swappable stages** — real ↔ mock implementations via the `OFFLINE_DEMO` build flag
 - 🛟 **Graceful degradation** — if a voice isn't installed, offer to install it
 
 ## Architecture
@@ -68,6 +68,12 @@ fuses capture and recognition, fits the same interface as the mock).
 
 Open in Android Studio and run the `app` configuration, or use the Gradle
 commands above (`gradlew.bat` on Windows).
+
+**Offline demo mode:** set `OFFLINE_DEMO` to `true` in `app/build.gradle.kts`
+(`defaultConfig { buildConfigField("boolean", "OFFLINE_DEMO", "true") }`) to run
+the scripted mock recognizer + canned translator — fully offline, no speech
+models or ML Kit downloads, ideal for emulators. Default is `false` (real
+on-device engines).
 
 ### Device requirements
 
