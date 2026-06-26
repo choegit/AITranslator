@@ -309,6 +309,12 @@ validated manually.
   currently illustrative. Unify them and show progress/gate on translation models
   too.
 - **Turn-based only.** No barge-in or streaming translation of partials.
+- **On-device ML runtime integration.** The current app uses platform on-device
+  engines and ML Kit translation. Future work should add a replaceable native ML
+  runtime layer that can support Qualcomm QNN, Snapdragon NPU acceleration, ONNX
+  Runtime, TensorFlow Lite custom model runtime, and native ML model inference.
+  This would allow the app to move beyond platform-provided engines and run
+  optimized custom ASR, translation, or TTS models directly on Android hardware.
 - **Offline demo mode** (`OFFLINE_DEMO = true`) uses the mock translator's small
   canned phrasebook (co-designed with the mock recognizer's scripted phrases);
   arbitrary input falls back to a tagged `[xx] …` passthrough.
