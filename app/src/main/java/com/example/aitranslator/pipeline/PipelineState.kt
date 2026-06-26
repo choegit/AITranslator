@@ -7,6 +7,9 @@ sealed interface PipelineState {
     /** Not running. */
     data object Idle : PipelineState
 
+    /** A one-time setup step before listening (e.g. downloading a speech model). */
+    data class Preparing(val message: String) : PipelineState
+
     /** Capturing audio; [amplitude] (0f..1f) drives a VU meter. */
     data class Listening(val amplitude: Float) : PipelineState
 

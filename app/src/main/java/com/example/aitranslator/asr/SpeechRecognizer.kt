@@ -5,6 +5,12 @@ import kotlinx.coroutines.flow.Flow
 
 /** Events produced by a recognizer for a continuous listening session. */
 sealed interface RecognitionEvent {
+    /**
+     * A one-time setup step before listening can begin (e.g. downloading the
+     * source language's on-device model). [message] is a human-readable status.
+     */
+    data class Preparing(val message: String) : RecognitionEvent
+
     /** Live input loudness in 0f..1f, for the VU meter. */
     data class Rms(val amplitude: Float) : RecognitionEvent
 

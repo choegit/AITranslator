@@ -7,6 +7,7 @@ import com.example.aitranslator.pipeline.PipelineState
 import com.example.aitranslator.pipeline.TranslationPipeline
 import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -30,18 +31,38 @@ class ConversationViewModel @Inject constructor(
     }
 
     private fun startListening() {
-        if (pipelineJob?.isActive == true) return
-        val state = _uiState.value
-        _uiState.update {
-            it.copy(isListening = true, statusLabel = "Listening…", partialTranscript = "", error = null)
-        }
+        if (_uiState.value.isListening) return
+        launchPipeline()
+    }
+
+    /**
+     * (Re)starts the pipeline with the current source/target languages. Used both
+     * to begin listening and to restart it in place when the languages change
+     * mid-session, since [TranslationPipeline.run] captures its languages once for
+     * the whole session. The previous job is cancelled and joined first so its
+     * recognizer releases the microphone before the new one starts (half-duplex).
+     * The [onCompletion] reset only fires for the still-active job, so a restart's
+     * teardown can't clobber the fresh session's state.
+     */
+    private fun launchPipeline() {
+        val previous = pipelineJob
+        val source = _uiState.value.sourceLanguage
+        val target = _uiState.value.targetLanguage
         pipelineJob = viewModelScope.launch {
-            pipeline.run(state.sourceLanguage, state.targetLanguage)
+            previous?.cancelAndJoin()
+            val self = coroutineContext[Job]
+            _uiState.update {
+                it.copy(isListening = true, statusLabel = "Listening…", partialTranscript = "", error = null)
+            }
+            pipeline.run(source, target)
                 .onCompletion {
                     // Covers both Stop and a pipeline that ends itself (e.g. the
-                    // model-not-ready gate emits an error then completes).
-                    _uiState.update {
-                        it.copy(isListening = false, amplitude = 0f, statusLabel = "Idle", partialTranscript = "")
+                    // model-not-ready gate emits an error then completes). Skip it
+                    // when a restart has already replaced this job.
+                    if (pipelineJob === self) {
+                        _uiState.update {
+                            it.copy(isListening = false, amplitude = 0f, statusLabel = "Idle", partialTranscript = "")
+                        }
                     }
                 }
                 .collect(::onPipelineState)
@@ -60,6 +81,7 @@ class ConversationViewModel @Inject constructor(
         _uiState.update { ui ->
             when (state) {
                 is PipelineState.Idle -> ui.copy(statusLabel = "Idle")
+                is PipelineState.Preparing -> ui.copy(statusLabel = state.message)
                 is PipelineState.Listening -> ui.copy(amplitude = state.amplitude, statusLabel = "Listening…")
                 is PipelineState.Transcribing -> ui.copy(partialTranscript = state.partial, statusLabel = "Transcribing…")
                 is PipelineState.Translating -> ui.copy(partialTranscript = state.sourceText, statusLabel = "Translating…")
@@ -81,7 +103,7 @@ class ConversationViewModel @Inject constructor(
 
     // Source and target must differ (you can't translate a language into itself),
     // so picking one that equals the other side swaps them, like common translators.
-    fun setSourceLanguage(language: Language) = _uiState.update {
+    fun setSourceLanguage(language: Language) = changeLanguages {
         if (language == it.targetLanguage) {
             it.copy(sourceLanguage = language, targetLanguage = it.sourceLanguage)
         } else {
@@ -89,7 +111,7 @@ class ConversationViewModel @Inject constructor(
         }
     }
 
-    fun setTargetLanguage(language: Language) = _uiState.update {
+    fun setTargetLanguage(language: Language) = changeLanguages {
         if (language == it.sourceLanguage) {
             it.copy(targetLanguage = language, sourceLanguage = it.targetLanguage)
         } else {
@@ -97,8 +119,18 @@ class ConversationViewModel @Inject constructor(
         }
     }
 
-    fun swapLanguages() = _uiState.update {
+    fun swapLanguages() = changeLanguages {
         it.copy(sourceLanguage = it.targetLanguage, targetLanguage = it.sourceLanguage)
+    }
+
+    /**
+     * Applies a language change and, if a session is in progress, restarts the
+     * pipeline so the new languages take effect immediately — otherwise the swap
+     * would only relabel the UI while the running session kept the old direction.
+     */
+    private fun changeLanguages(transform: (ConversationUiState) -> ConversationUiState) {
+        _uiState.update(transform)
+        if (_uiState.value.isListening) launchPipeline()
     }
 
     fun clearError() = _uiState.update { it.copy(error = null, voiceToInstall = null) }

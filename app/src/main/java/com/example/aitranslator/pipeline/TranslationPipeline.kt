@@ -54,6 +54,7 @@ class TranslationPipeline(
             recognizer.recognize(source)
                 .takeWhile { event ->
                     when (event) {
+                        is RecognitionEvent.Preparing -> { send(PipelineState.Preparing(event.message)); true }
                         is RecognitionEvent.Rms -> { send(PipelineState.Listening(event.amplitude)); true }
                         is RecognitionEvent.Partial -> { send(PipelineState.Transcribing(event.text)); true }
                         is RecognitionEvent.Final -> { finalText = event.text; false }
