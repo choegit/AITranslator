@@ -2,6 +2,8 @@ package com.example.aitranslator.ui.models
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.example.aitranslator.asr.SpeechModel
+import com.example.aitranslator.asr.SpeechModelManager
 import com.example.aitranslator.model.Language
 import com.example.aitranslator.model.ModelManager
 import com.example.aitranslator.model.TranslationModel
@@ -15,6 +17,7 @@ import javax.inject.Inject
 @HiltViewModel
 class ModelManagementViewModel @Inject constructor(
     private val modelManager: ModelManager,
+    private val speechModelManager: SpeechModelManager,
 ) : ViewModel() {
 
     val models: StateFlow<List<TranslationModel>> = modelManager.models.stateIn(
@@ -23,9 +26,24 @@ class ModelManagementViewModel @Inject constructor(
         initialValue = modelManager.models.value,
     )
 
+    val speechModels: StateFlow<List<SpeechModel>> = speechModelManager.models.stateIn(
+        scope = viewModelScope,
+        started = SharingStarted.WhileSubscribed(5_000),
+        initialValue = speechModelManager.models.value,
+    )
+
+    init {
+        // Discover which speech packs are already installed vs. downloadable.
+        viewModelScope.launch { speechModelManager.refresh() }
+    }
+
     fun download(language: Language) {
         viewModelScope.launch { modelManager.download(language) }
     }
 
     fun delete(language: Language) = modelManager.delete(language)
+
+    fun downloadSpeech(language: Language) {
+        viewModelScope.launch { speechModelManager.download(language) }
+    }
 }

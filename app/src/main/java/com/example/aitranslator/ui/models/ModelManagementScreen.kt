@@ -25,6 +25,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.example.aitranslator.asr.SpeechModel
+import com.example.aitranslator.asr.SpeechModelState
 import com.example.aitranslator.model.ModelState
 import com.example.aitranslator.model.TranslationModel
 
@@ -35,6 +37,7 @@ fun ModelManagementScreen(
     viewModel: ModelManagementViewModel = hiltViewModel(),
 ) {
     val models by viewModel.models.collectAsStateWithLifecycle()
+    val speechModels by viewModel.speechModels.collectAsStateWithLifecycle()
 
     Scaffold(
         topBar = {
@@ -51,6 +54,7 @@ fun ModelManagementScreen(
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            item { SectionHeader("Translation") }
             items(models) { model ->
                 ModelRow(
                     model = model,
@@ -58,8 +62,26 @@ fun ModelManagementScreen(
                     onDelete = { viewModel.delete(model.language) },
                 )
             }
+
+            item { SectionHeader("Speech recognition") }
+            items(speechModels) { model ->
+                SpeechModelRow(
+                    model = model,
+                    onDownload = { viewModel.downloadSpeech(model.language) },
+                )
+            }
         }
     }
+}
+
+@Composable
+private fun SectionHeader(title: String) {
+    Text(
+        title,
+        style = MaterialTheme.typography.titleSmall,
+        color = MaterialTheme.colorScheme.primary,
+        modifier = Modifier.padding(top = 8.dp),
+    )
 }
 
 @Composable
@@ -90,6 +112,45 @@ private fun ModelRow(
                     progress = { state.progress },
                     modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
                 )
+            }
+        }
+    }
+}
+
+@Composable
+private fun SpeechModelRow(
+    model: SpeechModel,
+    onDownload: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Column(modifier = Modifier.padding(12.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(model.language.displayName, style = MaterialTheme.typography.titleMedium)
+                when (val state = model.state) {
+                    is SpeechModelState.Available -> Button(onClick = onDownload) { Text("Download") }
+                    is SpeechModelState.Downloading ->
+                        Text(state.progress?.let { "${(it * 100).toInt()}%" } ?: "Downloading…")
+                    is SpeechModelState.Installed ->
+                        Text("Installed", color = MaterialTheme.colorScheme.primary)
+                    is SpeechModelState.Unsupported ->
+                        Text("Not available", style = MaterialTheme.typography.bodySmall)
+                    is SpeechModelState.Unknown ->
+                        Text("Checking…", style = MaterialTheme.typography.bodySmall)
+                }
+            }
+            (model.state as? SpeechModelState.Downloading)?.let { state ->
+                if (state.progress != null) {
+                    LinearProgressIndicator(
+                        progress = { state.progress },
+                        modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    )
+                } else {
+                    LinearProgressIndicator(modifier = Modifier.fillMaxWidth().padding(top = 8.dp))
+                }
             }
         }
     }

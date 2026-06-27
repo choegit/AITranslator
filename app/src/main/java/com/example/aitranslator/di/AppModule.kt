@@ -4,6 +4,7 @@ import android.content.Context
 import com.example.aitranslator.BuildConfig
 import com.example.aitranslator.asr.AndroidSpeechRecognizer
 import com.example.aitranslator.asr.MockSpeechRecognizer
+import com.example.aitranslator.asr.SpeechModelManager
 import com.example.aitranslator.asr.SpeechRecognizer
 import com.example.aitranslator.audio.AudioCapture
 import com.example.aitranslator.audio.AudioRecordCapture
@@ -66,6 +67,11 @@ object AppModule {
     @Provides
     @Singleton
     fun provideModelManager(): ModelManager = ModelManager()
+
+    @Provides
+    @Singleton
+    fun provideSpeechModelManager(@ApplicationContext context: Context): SpeechModelManager =
+        SpeechModelManager(context)
 
     @Provides
     @Singleton
